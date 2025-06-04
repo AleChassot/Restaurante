@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head('Pedidos')}"></head>
+<body class="d-flex flex-column min-vh-100">
+<div th:replace="~{fragments/navbar :: navbar}"></div>
+
+<main class="container py-4">
+    <h1>Lista de Pedidos</h1>
+    <div class="d-flex gap-2 mb-3">
+        <a class="btn btn-success" href="/pedidos/novo">Novo Pedido</a>
+        <a class="btn btn-primary" href="/pedidos/filtro">Filtrar por Cliente/Data</a>
+        <a th:href="@{/pedidos(apenasPendentes=${!filtroPendentes})}" 
+           class="btn" 
+           th:classappend="${filtroPendentes} ? 'btn-danger' : 'btn-outline-danger'">
+            <i class="bi" th:classappend="${filtroPendentes} ? 'bi-x-circle' : 'bi-filter'"></i>
+            <span th:text="${filtroPendentes} ? 'Mostrar Todos' : 'Apenas Pendentes'"></span>
+        </a>
+        <a class="btn btn-secondary" href="/">Voltar ao Início</a>
+    </div>
+
+<table class="table table-bordered">
+    <thead>
+    <tr>
+        <th>ID</th>
+        <th>Cliente</th>
+        <th>Data</th>
+        <th>Total</th>
+        <th>Status</th>
+        <th>Valor Pago</th>
+        <th>Itens</th>
+        <th>Ações</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="pedido : ${pedidos.content}">
+        <td th:text="${pedido.id}"></td>
+        <td th:text="${pedido.cliente}"></td>
+        <td th:text="${pedido.data}"></td>
+        <td th:text="${#numbers.formatDecimal(pedido.valorTotal, 1, 'COMMA', 2, 'POINT')}"></td>
+        <td th:text="${pedido.statusPagamento}"></td>
+        <td th:text="${#numbers.formatDecimal(pedido.valorPago, 1, 'COMMA', 2, 'POINT')}"></td>
+        <td>
+            <ul class="list-unstyled mb-0">
+                <li th:each="pi : ${pedido.pedidoItens}">
+                    <span class="fw-semibold" th:text="${pi.item.nome}"></span>
+                    <span class="badge bg-primary ms-1">x<span th:text="${pi.quantidade}"></span></span>
+                </li>
+            </ul>
+        </td>
+        <td>
+            <a class="btn btn-warning btn-sm" th:href="@{'/pedidos/editar/' + ${pedido.id}}">Editar</a>
+            <a class="btn btn-danger btn-sm" th:href="@{'/pedidos/excluir/' + ${pedido.id}}"
+               onclick="return confirm('Deseja excluir este pedido?')">Excluir</a>
+            <a class="btn btn-success btn-sm" th:href="@{'/pedidos/pagamento/' + ${pedido.id}}">Pagar Conta</a>
+        </td>
+    </tr>
+    </tbody>
+</table>
+
+<div th:if="${pedidos.totalPages > 1}" class="d-flex justify-content-center">
+    <nav>
+        <ul class="pagination">
+            <li class="page-item" th:classappend="${pedidos.first} ? 'disabled'">
+                <a class="page-link" 
+                   th:href="@{/pedidos(page=${pedidos.number - 1}, apenasPendentes=${filtroPendentes})}">Anterior</a>
+            </li>
+            <li class="page-item" th:each="i : ${#numbers.sequence(0, pedidos.totalPages - 1)}"
+                th:classappend="${i == pedidos.number} ? 'active'">
+                <a class="page-link" 
+                   th:href="@{/pedidos(page=${i}, apenasPendentes=${filtroPendentes})}" 
+                   th:text="${i + 1}"></a>
+            </li>
+            <li class="page-item" th:classappend="${pedidos.last} ? 'disabled'">
+                <a class="page-link" 
+                   th:href="@{/pedidos(page=${pedidos.number + 1}, apenasPendentes=${filtroPendentes})}">Próxima</a>
+            </li>
+        </ul>
+    </nav>
+</div>
+</main>
+
+<div class="mt-auto" th:replace="~{fragments/footer :: footer}"></div>
+</body>
+</html>

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="fragments/head :: head('Itens do Cardápio')"></head>
+<body class="d-flex flex-column min-vh-100">
+<div th:replace="fragments/navbar :: navbar"></div>
+
+<main class="container py-4">
+    <h1>Itens do Cardápio</h1>
+
+    <div th:if="${mensagem}" class="alert alert-success alert-dismissible fade show" role="alert">
+        <span th:text="${mensagem}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+
+    <div th:if="${erro}" class="alert alert-danger alert-dismissible fade show" role="alert">
+        <span th:text="${erro}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+
+    <div class="mb-3 d-flex gap-2">
+        <a class="btn btn-success" th:href="@{/cardapio/novo}">Novo Item</a>
+        <a class="btn btn-primary" th:href="@{/cardapio/exportar-pdf}">Exportar PDF</a>
+        <a class="btn btn-secondary" th:href="@{/cardapio/buscar-por-preco}">Buscar por Preço</a>
+        <a class="btn btn-info" th:href="@{/}">Voltar ao Início</a>
+    </div>
+
+    <table class="table table-bordered">
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>Nome</th>
+            <th>Preço</th>
+            <th>Categoria</th>
+            <th>Status</th>
+            <th>Ações</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="item : ${itens.content}">
+            <td th:text="${item.id}">1</td>
+            <td th:text="${item.nome}">Nome</td>
+            <td th:text="${#numbers.formatDecimal(item.preco, 1, 2)}">0.00</td>
+            <td th:text="${item.categoria.descricao}">CATEGORIA</td>
+            <td th:text="${item.ativo ? 'Ativo' : 'Inativo'}">Status</td>
+            <td>
+                <a class="btn btn-warning btn-sm" th:href="@{/cardapio/editar/{id}(id=${item.id})}">Editar</a>
+                <a class="btn btn-danger btn-sm" th:href="@{/cardapio/excluir/{id}(id=${item.id})}"
+                   onclick="return confirm('Deseja excluir este item?')">Excluir</a>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+    <nav th:if="${itens.totalPages > 1}">
+        <ul class="pagination justify-content-center">
+            <li class="page-item" th:classappend="${itens.first} ? 'disabled'">
+                <a class="page-link" th:href="@{/cardapio(page=0)}">&laquo;&laquo;</a>
+            </li>
+
+            <li class="page-item" th:classappend="${itens.first} ? 'disabled'">
+                <a class="page-link" th:href="@{/cardapio(page=${itens.number - 1})}">&laquo;</a>
+            </li>
+
+            <li class="page-item"
+                th:each="i : ${#numbers.sequence(
+                    T(java.lang.Math).max(0, itens.number - 2),
+                    T(java.lang.Math).min(itens.totalPages - 1, itens.number + 2)
+                )}"
+                th:classappend="${i == itens.number} ? 'active'">
+                <a class="page-link" th:href="@{/cardapio(page=${i})}" th:text="${i + 1}">1</a>
+            </li>
+
+            <li class="page-item" th:classappend="${itens.last} ? 'disabled'">
+                <a class="page-link" th:href="@{/cardapio(page=${itens.number + 1})}">&raquo;</a>
+            </li>
+
+            <li class="page-item" th:classappend="${itens.last} ? 'disabled'">
+                <a class="page-link" th:href="@{/cardapio(page=${itens.totalPages - 1})}">&raquo;&raquo;</a>
+            </li>
+        </ul>
+    </nav>
+</main>
+
+<div class="mt-auto" th:replace="fragments/footer :: footer"></div>
+</body>
+</html>

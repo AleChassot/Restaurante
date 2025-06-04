@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="https://www.thymeleaf.org/thymeleaf-extras-springsecurity6">
+<head th:replace="~{fragments/head :: head('Novo Pedido')}"></head>
+<body class="d-flex flex-column min-vh-100">
+    <div th:replace="~{fragments/navbar :: navbar}"></div>
+
+    <main class="container py-4">
+        <h1 th:text="${pedido.id != null} ? 'Editar Pedido' : 'Novo Pedido'"></h1>
+
+        <div th:if="${mensagem}" class="alert alert-success alert-dismissible fade show" role="alert">
+            <span th:text="${mensagem}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+
+        <div th:if="${erro}" class="alert alert-danger alert-dismissible fade show" role="alert">
+            <span th:text="${erro}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+
+        <form th:action="@{/pedidos/salvar}" th:object="${pedido}" method="post" id="formPedido">
+            <input type="hidden" th:field="*{id}" />
+
+            <div class="mb-3">
+                <label class="form-label" for="cliente">Cliente</label>
+                <input type="text" class="form-control" th:field="*{cliente}" id="cliente" required />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" for="mesa">Mesa</label>
+                <select class="form-select" th:field="*{mesa}" id="mesa" required>
+                    <option value="">Selecione uma mesa</option>
+                    <option th:each="mesa : ${mesas}"
+                            th:value="${mesa.id}"
+                            th:text="${'Mesa ' + mesa.numero + ' - ' + (mesa.ocupada ? 'Ocupada' : 'Livre')}"
+                            th:disabled="${mesa.ocupada}">
+                    </option>
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Itens do Cardápio</label>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Preço</th>
+                                <th>Quantidade</th>
+                                <th>Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="item : ${itens}">
+                                <td>
+                                    <div class="form-check">
+                                        <input class="form-check-input item-checkbox" type="checkbox" 
+                                               th:name="'pedidoItens[' + ${itemStat.index} + '].selecionado'"
+                                               th:value="true"
+                                               th:onclick="'atualizarQuantidade(this, ' + ${itemStat.index} + ')'"/>
+                                        <input type="hidden" th:name="'pedidoItens[' + ${itemStat.index} + '].selecionado'" value="false"/>
+                                        <input type="hidden" th:name="'pedidoItens[' + ${itemStat.index} + '].item.id'" th:value="${item.id}"/>
+                                        <label class="form-check-label" th:text="${item.nome}"></label>
+                                    </div>
+                                </td>
+                                <td>R$ <span th:text="${#numbers.formatDecimal(item.preco, 1, 2)}"></span></td>
+                                <td>
+                                    <div class="input-group" style="width: 150px;">
+                                        <input type="number" min="1" value="1"
+                                               th:name="'pedidoItens[' + ${itemStat.index} + '].quantidade'"
+                                               th:attr="data-preco=${item.preco}, data-item-id=${item.id}"
+                                               class="form-control quantidade-input"
+                                               disabled/>
+                                    </div>
+                                </td>
+                                <td>R$ <span class="subtotal" th:attr="data-index=${itemStat.index}">0.00</span></td>
+                            </tr>
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="3" class="text-end"><strong>Total:</strong></td>
+                                <td>
+                                    <strong>R$ <span id="totalPedido">0.00</span></strong>
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" th:field="*{comServico}" id="comServico" onchange="calcularTotal()"/>
+                <label class="form-check-label" for="comServico">Adicionar 10% de serviço</label>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" for="valorTotal">Valor Total</label>
+                <div class="input-group">
+                    <span class="input-group-text">R$</span>
+                    <input type="text" class="form-control" th:field="*{valorTotal}" id="valorTotal" readonly/>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Salvar</button>
+            <a th:href="@{/pedidos}" class="btn btn-secondary">Voltar</a>
+        </form>
+    </main>
+
+    <div class="mt-auto" th:replace="~{fragments/footer :: footer}"></div>
+
+    <script th:inline="javascript">
+    function atualizarQuantidade(checkbox, index) {
+        const quantidadeInput = document.querySelector(`input[name="pedidoItens[${index}].quantidade"]`);
+        if (checkbox.checked) {
+            quantidadeInput.disabled = false;
+            quantidadeInput.value = 1;
+        } else {
+            quantidadeInput.disabled = true;
+            quantidadeInput.value = 0;
+        }
+        calcularTotal();
+        verificarBotaoSalvar();
+    }
+
+    function calcularTotal() {
+        let total = 0;
+        const checkboxes = document.querySelectorAll('input[type="checkbox"]:checked');
+        
+        checkboxes.forEach((checkbox, index) => {
+            const quantidadeInput = document.querySelector(`input[name="pedidoItens[${index}].quantidade"]`);
+            if (quantidadeInput && !quantidadeInput.disabled) {
+                const preco = parseFloat(quantidadeInput.getAttribute('data-preco'));
+                const quantidade = parseInt(quantidadeInput.value) || 0;
+                const subtotal = preco * quantidade;
+                
+                // Atualiza o subtotal na tabela
+                const subtotalElement = document.querySelector(`.subtotal[data-index="${index}"]`);
+                if (subtotalElement) {
+                    subtotalElement.textContent = subtotal.toFixed(2);
+                }
+                
+                total += subtotal;
+            }
+        });
+
+        if(document.getElementById('comServico').checked) {
+            total *= 1.10;
+        }
+
+        document.getElementById('totalPedido').textContent = total.toFixed(2);
+        document.getElementById('valorTotal').value = total.toFixed(2);
+    }
+
+    function verificarBotaoSalvar() {
+        const checkboxes = document.querySelectorAll('input[type="checkbox"]:checked');
+        const botaoSalvar = document.querySelector('button[type="submit"]');
+        const temItemSelecionado = checkboxes.length > 0;
+        
+        botaoSalvar.disabled = !temItemSelecionado;
+        
+        if (!temItemSelecionado) {
+            botaoSalvar.title = 'Selecione pelo menos um item para salvar o pedido';
+        } else {
+            botaoSalvar.title = '';
+        }
+    }
+
+    window.onload = function() {
+        calcularTotal();
+        verificarBotaoSalvar();
+        
+        document.querySelectorAll('.quantidade-input').forEach(input => {
+            input.addEventListener('input', function() {
+                if (parseInt(this.value) < 1) {
+                    this.value = 1;
+                }
+                calcularTotal();
+            });
+        });
+        
+        document.getElementById('comServico').addEventListener('change', calcularTotal);
+
+        // Adiciona validação no envio do formulário
+        document.getElementById('formPedido').addEventListener('submit', function(event) {
+            const checkboxes = document.querySelectorAll('input[type="checkbox"]:checked');
+            if (checkboxes.length === 0) {
+                event.preventDefault();
+                alert('Selecione pelo menos um item para salvar o pedido');
+                return;
+            }
+
+            // Verifica se todos os itens selecionados têm quantidade válida
+            let todosItensValidos = true;
+            checkboxes.forEach((checkbox, index) => {
+                const quantidadeInput = document.querySelector(`input[name="pedidoItens[${index}].quantidade"]`);
+                if (quantidadeInput && !quantidadeInput.disabled) {
+                    const quantidade = parseInt(quantidadeInput.value) || 0;
+                    if (quantidade < 1) {
+                        todosItensValidos = false;
+                    }
+                }
+            });
+
+            if (!todosItensValidos) {
+                event.preventDefault();
+                alert('Todos os itens selecionados devem ter quantidade maior que zero');
+                return;
+            }
+        });
+    };
+    </script>
+</body>
+</html>

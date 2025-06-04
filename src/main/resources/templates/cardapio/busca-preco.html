@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="fragments/head :: head('Buscar por Preço')"></head>
+<body class="d-flex flex-column min-vh-100">
+<div th:replace="fragments/navbar :: navbar"></div>
+
+<main class="container py-4">
+    <h1>Buscar Itens por Preço</h1>
+
+    <form method="get" th:action="@{/cardapio/buscar-por-preco/resultados}" class="row g-3 mb-4">
+        <div class="col-md-5">
+            <label for="min" class="form-label">Preço Mínimo</label>
+            <input type="number" step="0.01" class="form-control" id="min" name="min" required th:value="${min}"> </div>
+        <div class="col-md-5">
+            <label for="max" class="form-label">Preço Máximo</label>
+            <input type="number" step="0.01" class="form-control" id="max" name="max" required th:value="${max}"> </div>
+        <div class="col-md-2 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary w-100 me-2">Buscar</button> <a class="btn btn-secondary w-100" th:href="@{/cardapio}">Voltar</a> </div>
+    </form>
+
+    <div th:if="${erro}" class="alert alert-danger" th:text="${erro}"></div> <div th:if="${itens != null}">
+    <h2 th:if="${#lists.isEmpty(itens)}">Nenhum item encontrado.</h2>
+    <table th:if="${!#lists.isEmpty(itens)}" class="table table-bordered">
+        <thead>
+        <tr>
+            <th>ID</th> <th>Nome</th>
+            <th>Descrição</th>
+            <th>Preço</th>
+            <th>Categoria</th>
+            <th>Ações</th> </tr>
+        </thead>
+        <tbody>
+        <tr th:each="item : ${itens}">
+            <td th:text="${item.id}"></td>
+            <td th:text="${item.nome}"></td>
+            <td th:text="${item.descricao}"></td>
+            <td th:text="${item.preco}"></td>
+            <td th:text="${item.categoria}"></td>
+            <td>
+                <a class="btn btn-warning btn-sm" th:href="@{'/cardapio/editar/' + ${item.id}}">Editar</a>
+                <a class="btn btn-danger btn-sm" th:href="@{'/cardapio/excluir/' + ${item.id}}"
+                   onclick="return confirm('Deseja excluir este item?')">Excluir</a>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+</main>
+
+<div class="mt-auto" th:replace="fragments/footer :: footer"></div>
+</body>
+</html>

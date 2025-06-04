@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head('Filtrar Pedidos')}"></head>
+<body class="d-flex flex-column min-vh-100">
+<div th:replace="~{fragments/navbar :: navbar}"></div>
+
+<main class="container py-4">
+    <h1>Filtrar Pedidos</h1>
+
+    <form class="row g-3 mb-4" th:action="@{/pedidos/filtro/resultados}" method="get">
+        <div class="col-md-4">
+            <label for="tipoFiltro" class="form-label">Tipo de Filtro</label>
+            <select id="tipoFiltro" class="form-select" onchange="trocarFiltro()">
+                <option value="">Selecione</option>
+                <option value="cliente" th:selected="${clienteParam != null and clienteParam != ''}">Por Cliente</option>
+                <option value="data" th:selected="${inicioParam != null and inicioParam != ''}">Por Data</option>
+            </select>
+        </div>
+
+        <div id="filtroCliente" class="col-md-4" th:classappend="${clienteParam != null and clienteParam != '' ? '' : 'd-none'}">
+            <label for="cliente" class="form-label">Cliente</label>
+            <input type="text" class="form-control" id="cliente" name="cliente" th:value="${clienteParam}">
+        </div>
+
+        <div id="filtroData" class="row" th:classappend="${inicioParam != null and inicioParam != '' ? '' : 'd-none'}">
+            <div class="col-md-3">
+                <label for="inicio" class="form-label">Data Inicial</label>
+                <input type="date" class="form-control" id="inicio" name="inicio" th:value="${inicioParam}">
+            </div>
+            <div class="col-md-3">
+                <label for="fim" class="form-label">Data Final</label>
+                <input type="date" class="form-control" id="fim" name="fim" th:value="${fimParam}">
+            </div>
+        </div>
+
+        <div class="col-md-2 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary w-100">Buscar</button>
+        </div>
+    </form>
+
+    <div th:if="${erro}" class="alert alert-danger" th:text="${erro}"></div>
+
+    <div th:if="${pedidos != null}">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 th:text="|Total de Vendas: R$ ${#numbers.formatDecimal(total, 1, 'COMMA', 2, 'POINT')}|" class="my-0"></h4>
+            <div class="d-flex gap-2">
+                <a class="btn btn-secondary" th:href="@{/pedidos}">Voltar à Lista Principal</a>
+                <a class="btn btn-danger"
+                   th:if="${pedidos != null and !pedidos.isEmpty()}"
+                   th:href="@{/pedidos/exportar-pdf(
+                       cliente=${clienteParam},
+                       inicio=${inicioParam},
+                       fim=${fimParam})}">
+                    Exportar PDF
+                </a>
+            </div>
+        </div>
+
+        <table class="table table-bordered mt-3">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Cliente</th>
+                <th>Data</th>
+                <th>Total</th>
+                <th>Itens</th> <th>Ações</th> </tr>
+            </thead>
+            <tbody>
+            <tr th:each="pedido : ${pedidos}">
+                <td th:text="${pedido.id}"></td>
+                <td th:text="${pedido.cliente}"></td>
+                <td th:text="${pedido.data}"></td>
+                <td th:text="${#numbers.formatDecimal(pedido.valorTotal, 1, 'COMMA', 2, 'POINT')}"></td>
+                <td>
+                    <span th:each="item, itemStat : ${pedido.itens}">
+                        <span th:text="${item.nome}"></span><span th:if="${!itemStat.last}">, </span>
+                    </span>
+                </td>
+                <td>
+                    <a class="btn btn-warning btn-sm" th:href="@{'/pedidos/editar/' + ${pedido.id}}">Editar</a>
+                    <a class="btn btn-danger btn-sm" th:href="@{'/pedidos/excluir/' + ${pedido.id}}"
+                       onclick="return confirm('Deseja excluir este pedido?')">Excluir</a>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+
+<div class="mt-auto" th:replace="~{fragments/footer :: footer}"></div>
+
+<script>
+    function trocarFiltro() {
+        const tipo = document.getElementById("tipoFiltro").value;
+        const filtroCliente = document.getElementById("filtroCliente");
+        const filtroData = document.getElementById("filtroData");
+
+        // Limpa os valores dos campos que serão escondidos para evitar submissão indesejada
+        const clienteInput = document.getElementById("cliente");
+        const inicioInput = document.getElementById("inicio");
+        const fimInput = document.getElementById("fim");
+
+        filtroCliente.classList.add("d-none");
+        filtroData.classList.add("d-none");
+
+        if (tipo === "cliente") {
+            filtroCliente.classList.remove("d-none");
+            inicioInput.value = ''; // Limpa campo de data
+            fimInput.value = '';    // Limpa campo de data
+        } else if (tipo === "data") {
+            filtroData.classList.remove("d-none");
+            clienteInput.value = ''; // Limpa campo de cliente
+        } else { // Se "Selecione" for escolhido, limpa tudo
+            clienteInput.value = '';
+            inicioInput.value = '';
+            fimInput.value = '';
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        // Inicializa o filtro correto ao carregar a página se já houver parâmetros na URL
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('cliente') && urlParams.get('cliente') !== '') {
+            document.getElementById("tipoFiltro").value = "cliente";
+        } else if (urlParams.has('inicio') && urlParams.get('inicio') !== '') {
+            document.getElementById("tipoFiltro").value = "data";
+        }
+        trocarFiltro(); // Chama a função para exibir o filtro correto
+    });
+</script>
+
+</body>
+</html>

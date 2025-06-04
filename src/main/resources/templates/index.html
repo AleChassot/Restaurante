@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="https://www.thymeleaf.org/thymeleaf-extras-springsecurity6">
+
+<head th:replace="~{fragments/head :: head('Início')}"></head>
+<body class="d-flex flex-column min-vh-100">
+
+<!-- Navbar no topo -->
+<div th:replace="~{fragments/navbar :: navbar}"></div>
+
+<!-- Conteúdo centralizado -->
+<main class="d-flex flex-column flex-grow-1 justify-content-center">
+    <div class="container text-center">
+        <h1 class="mb-4">SISTEMA DE PEDIDOS</h1>
+        <div class="d-grid gap-3 col-6 mx-auto">
+            <a href="/pedidos" class="btn btn-outline-dark btn-lg">GERENCIAR PEDIDOS</a>
+            <a href="/cardapio" class="btn btn-outline-secondary btn-lg"
+               sec:authorize="hasRole('ADMIN')">GERENCIAR ITENS DO CARDÁPIO</a>
+        </div>
+    </div>
+</main>
+
+<!-- Footer sempre ao final -->
+<div class="mt-auto" th:replace="~{fragments/footer :: footer}"></div>
+
+</body>
+</html>

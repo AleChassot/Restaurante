@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head('Pagamento')}"></head>
+<body class="d-flex flex-column min-vh-100">
+    <div th:replace="~{fragments/navbar :: navbar}"></div>
+
+    <main class="container py-4">
+        <h1>Pagamento do Pedido #<span th:text="${pedido.id}"></span></h1>
+
+        <div th:if="${mensagem}" class="alert alert-success alert-dismissible fade show" role="alert">
+            <span th:text="${mensagem}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+
+        <div th:if="${erro}" class="alert alert-danger alert-dismissible fade show" role="alert">
+            <span th:text="${erro}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+
+        <form th:action="@{/pagamentos/processar}" method="post" id="formPagamento" onsubmit="return validarFormulario()">
+            <input type="hidden" name="pedidoId" th:value="${pedido.id}" />
+            <input type="hidden" name="comServico" id="comServicoHidden" value="false" />
+
+            <div class="mb-3">
+                <label class="form-label">Itens do Pedido</label>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Quantidade</th>
+                                <th>Preço Unit.</th>
+                                <th>Subtotal</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="pi, stat : ${pedido.pedidoItens}">
+                                <td>
+                                    <div class="form-check">
+                                        <input class="form-check-input item-checkbox" type="checkbox" 
+                                               th:name="'selecionado[' + ${stat.index} + ']'"
+                                               th:value="true"
+                                               th:onclick="'atualizarQuantidade(this, ' + ${stat.index} + ')'"/>
+                                        <input type="hidden" th:name="'selecionado[' + ${stat.index} + ']'" value="false"/>
+                                        <label class="form-check-label" th:text="${pi.item.nome}"></label>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="input-group" style="width: 150px;">
+                                        <input type="number" min="1" th:max="${pi.quantidade}"
+                                               th:name="quantidadePaga"
+                                               th:value="${pi.quantidade}"
+                                               th:attr="data-preco=${pi.item.preco}, data-max=${pi.quantidade}"
+                                               class="form-control quantidade-input"
+                                               disabled/>
+                                        <span class="input-group-text">/ <span th:text="${pi.quantidade}"></span></span>
+                                    </div>
+                                </td>
+                                <td>R$ <span th:text="${#numbers.formatDecimal(pi.item.preco, 1, 2)}"></span></td>
+                                <td>R$ <span class="subtotal" th:attr="data-index=${stat.index}">0.00</span></td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" 
+                                            onclick="selecionarTodosItens()">
+                                        Selecionar Todos
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="3" class="text-end"><strong>Total do Pedido:</strong></td>
+                                <td colspan="2">
+                                    <strong>R$ <span th:text="${#numbers.formatDecimal(pedido.valorTotal, 1, 2)}"></span></strong>
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" id="comServico" onchange="atualizarComServico()"/>
+                <label class="form-check-label" for="comServico">Adicionar 10% de serviço</label>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Forma de Pagamento</label>
+                <select class="form-select" name="formaPagamento" id="formaPagamento" onchange="mostrarTroco()" required>
+                    <option value="">Selecione a forma de pagamento</option>
+                    <option th:each="forma : ${formasPagamento}"
+                            th:value="${forma}"
+                            th:text="${forma.descricao}">Forma de Pagamento</option>
+                </select>
+            </div>
+
+            <div class="mb-3" id="divValorRecebido" style="display:none;">
+                <label class="form-label" for="valorRecebido">Valor Recebido (Dinheiro)</label>
+                <div class="input-group">
+                    <span class="input-group-text">R$</span>
+                    <input type="number" step="0.01" min="0" class="form-control" name="valorRecebido" id="valorRecebido" oninput="calcularTroco()"/>
+                </div>
+                <div class="invalid-feedback" id="feedbackValorRecebido">
+                    O valor recebido deve ser maior ou igual ao total a pagar.
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Total a Pagar</label>
+                <div class="input-group">
+                    <span class="input-group-text">R$</span>
+                    <input type="text" class="form-control" id="totalPagar" readonly/>
+                </div>
+            </div>
+
+            <div class="mb-3" id="divTroco" style="display:none;">
+                <label class="form-label">Troco</label>
+                <div class="input-group">
+                    <span class="input-group-text">R$</span>
+                    <input type="text" class="form-control" id="troco" readonly/>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-success" id="btnConfirmar" disabled>
+                <i class="bi bi-check-circle"></i> Confirmar Pagamento
+            </button>
+            <a th:href="@{/pedidos}" class="btn btn-secondary">
+                <i class="bi bi-x-circle"></i> Cancelar
+            </a>
+        </form>
+    </main>
+
+    <div class="mt-auto" th:replace="~{fragments/footer :: footer}"></div>
+
+    <script th:inline="javascript">
+    function selecionarTodosItens() {
+        console.log('Iniciando seleção de todos os itens');
+        const checkboxes = document.querySelectorAll('.item-checkbox');
+        console.log('Total de checkboxes encontrados:', checkboxes.length);
+        
+        checkboxes.forEach((checkbox, index) => {
+            console.log(`Processando checkbox ${index}:`, checkbox);
+            checkbox.checked = true;
+            atualizarQuantidade(checkbox, index);
+        });
+    }
+
+    function atualizarQuantidade(checkbox, index) {
+        console.log(`Atualizando quantidade para checkbox ${index}`);
+        const quantidadeInputs = document.querySelectorAll('input[name^="quantidadePaga"]');
+        const hiddenInputs = document.querySelectorAll(`input[name="selecionado[${index}]"][type="hidden"]`);
+        
+        console.log('Total de inputs de quantidade:', quantidadeInputs.length);
+        console.log('Total de inputs hidden:', hiddenInputs.length);
+        
+        if (index >= 0 && index < quantidadeInputs.length) {
+            const quantidadeInput = quantidadeInputs[index];
+            const hiddenInput = hiddenInputs[0]; // Agora só teremos um hidden input por item
+            const quantidadeMax = parseInt(quantidadeInput.getAttribute('data-max')) || 0;
+            
+            console.log(`Processando inputs para índice ${index}:`, {
+                quantidadeInput: quantidadeInput,
+                hiddenInput: hiddenInput,
+                checked: checkbox.checked,
+                quantidadeMax: quantidadeMax
+            });
+            
+            if (checkbox.checked) {
+                quantidadeInput.disabled = false;
+                quantidadeInput.value = quantidadeMax;
+                quantidadeInput.classList.remove('is-invalid');
+                hiddenInput.value = 'true';
+                
+                // Força o cálculo do total após atualizar o valor
+                setTimeout(() => {
+                    calcularTotal();
+                    verificarBotaoConfirmar();
+                }, 0);
+            } else {
+                quantidadeInput.disabled = true;
+                quantidadeInput.value = quantidadeMax; // Mantém o valor máximo mesmo quando desabilitado
+                hiddenInput.value = 'false';
+                calcularTotal();
+                verificarBotaoConfirmar();
+            }
+        } else {
+            console.error(`Índice ${index} fora dos limites. Total de inputs: ${quantidadeInputs.length}`);
+        }
+    }
+
+    function calcularTotal() {
+        console.log('Calculando total');
+        let total = 0;
+        let temItemSelecionado = false;
+        const checkboxes = document.querySelectorAll('.item-checkbox');
+        const quantidadeInputs = document.querySelectorAll('input[name="quantidadePaga"]');
+        
+        console.log('Total de checkboxes:', checkboxes.length);
+        console.log('Total de inputs de quantidade:', quantidadeInputs.length);
+        
+        checkboxes.forEach((checkbox, index) => {
+            if (index < quantidadeInputs.length) {
+                const quantidadeInput = quantidadeInputs[index];
+                console.log(`Processando item ${index}:`, {
+                    checked: checkbox.checked,
+                    quantidadeInput: quantidadeInput,
+                    disabled: quantidadeInput.disabled,
+                    value: quantidadeInput.value,
+                    max: quantidadeInput.getAttribute('data-max')
+                });
+                
+                if (checkbox.checked && !quantidadeInput.disabled) {
+                    const preco = parseFloat(quantidadeInput.getAttribute('data-preco'));
+                    const quantidade = parseInt(quantidadeInput.value) || 0;
+                    const quantidadeMax = parseInt(quantidadeInput.getAttribute('data-max')) || 0;
+                    
+                    console.log(`Item ${index} - Preço: ${preco}, Quantidade: ${quantidade}, Máximo: ${quantidadeMax}`);
+                    
+                    if (quantidade > 0) {
+                        temItemSelecionado = true;
+                    }
+                    
+                    if (quantidade > quantidadeMax) {
+                        quantidadeInput.value = quantidadeMax;
+                    }
+                    
+                    const subtotal = quantidade * preco;
+                    total += subtotal;
+                    
+                    // Atualiza o subtotal na tabela
+                    const subtotalElement = document.querySelector(`.subtotal[data-index="${index}"]`);
+                    if (subtotalElement) {
+                        subtotalElement.textContent = subtotal.toFixed(2);
+                    }
+                }
+            }
+        });
+
+        if(document.getElementById('comServico').checked) {
+            total *= 1.10;
+        }
+
+        console.log('Total calculado:', total);
+        document.getElementById('totalPagar').value = total.toFixed(2);
+        verificarBotaoConfirmar();
+        return total;
+    }
+
+    function mostrarTroco() {
+        const forma = document.getElementById('formaPagamento').value;
+        const divValorRecebido = document.getElementById('divValorRecebido');
+        const divTroco = document.getElementById('divTroco');
+        
+        divValorRecebido.style.display = forma === 'DINHEIRO' ? '' : 'none';
+        divTroco.style.display = forma === 'DINHEIRO' ? '' : 'none';
+        
+        if (forma === 'DINHEIRO') {
+            document.getElementById('valorRecebido').value = '';
+            document.getElementById('troco').value = '0.00';
+        }
+        
+        calcularTroco();
+        verificarBotaoConfirmar();
+    }
+
+    function calcularTroco() {
+        const forma = document.getElementById('formaPagamento').value;
+        const valorRecebidoInput = document.getElementById('valorRecebido');
+        const feedbackValorRecebido = document.getElementById('feedbackValorRecebido');
+        
+        if(forma === 'DINHEIRO') {
+            const valorRecebido = parseFloat(valorRecebidoInput.value) || 0;
+            const total = parseFloat(document.getElementById('totalPagar').value) || 0;
+            const troco = valorRecebido - total;
+            
+            if (valorRecebido < total) {
+                valorRecebidoInput.classList.add('is-invalid');
+                feedbackValorRecebido.style.display = 'block';
+            } else {
+                valorRecebidoInput.classList.remove('is-invalid');
+                feedbackValorRecebido.style.display = 'none';
+            }
+            
+            document.getElementById('troco').value = troco > 0 ? troco.toFixed(2) : '0.00';
+        }
+        verificarBotaoConfirmar();
+    }
+
+    function verificarBotaoConfirmar() {
+        const total = parseFloat(document.getElementById('totalPagar').value) || 0;
+        const forma = document.getElementById('formaPagamento').value;
+        const valorRecebido = parseFloat(document.getElementById('valorRecebido').value) || 0;
+        
+        let habilitar = total > 0 && forma !== '';
+        
+        if (forma === 'DINHEIRO') {
+            habilitar = habilitar && valorRecebido >= total;
+        }
+        
+        document.getElementById('btnConfirmar').disabled = !habilitar;
+    }
+
+    function validarFormulario() {
+        console.log('Iniciando validação do formulário');
+        const total = parseFloat(document.getElementById('totalPagar').value) || 0;
+        if (total <= 0) {
+            alert('Selecione pelo menos um item para pagamento');
+            return false;
+        }
+
+        const forma = document.getElementById('formaPagamento').value;
+        if (!forma) {
+            alert('Selecione uma forma de pagamento');
+            return false;
+        }
+
+        const valorRecebido = parseFloat(document.getElementById('valorRecebido').value) || 0;
+        
+        let mensagem = `Confirmar pagamento de R$ ${total.toFixed(2)}?`;
+        
+        if (forma === 'DINHEIRO') {
+            if (valorRecebido < total) {
+                alert('O valor recebido deve ser maior ou igual ao total a pagar');
+                return false;
+            }
+            const troco = valorRecebido - total;
+            mensagem += `\nValor recebido: R$ ${valorRecebido.toFixed(2)}`;
+            mensagem += `\nTroco: R$ ${troco.toFixed(2)}`;
+        }
+
+        // Garante que todos os campos hidden de seleção estejam preenchidos
+        const checkboxes = document.querySelectorAll('.item-checkbox');
+        const quantidadeInputs = document.querySelectorAll('input[name="quantidadePaga"]');
+        
+        console.log('Validando campos antes do envio:');
+        console.log('Total de checkboxes:', checkboxes.length);
+        console.log('Total de inputs de quantidade:', quantidadeInputs.length);
+        
+        // Remove todos os campos hidden existentes
+        document.querySelectorAll('input[name="selecionado"][type="hidden"]').forEach(input => input.remove());
+        
+        // Cria novos campos hidden para cada checkbox
+        checkboxes.forEach((checkbox, index) => {
+            const hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.name = 'selecionado';
+            hiddenInput.value = checkbox.checked ? 'true' : 'false';
+            checkbox.parentNode.appendChild(hiddenInput);
+            
+            console.log(`Checkbox ${index}:`, {
+                checked: checkbox.checked,
+                quantidade: quantidadeInputs[index]?.value,
+                hiddenValue: hiddenInput.value
+            });
+        });
+
+        // Log dos dados antes do envio
+        console.log('Dados do formulário:');
+        console.log('Selecionados:', Array.from(document.querySelectorAll('input[name="selecionado"]')).map(input => input.value));
+        console.log('Quantidades:', Array.from(document.querySelectorAll('input[name="quantidadePaga"]')).map(input => input.value));
+        
+        // Verifica se há pelo menos um item selecionado
+        const temItemSelecionado = Array.from(document.querySelectorAll('input[name="selecionado"]'))
+            .some(input => input.value === 'true');
+        
+        if (!temItemSelecionado) {
+            alert('Selecione pelo menos um item para pagamento');
+            return false;
+        }
+        
+        // Log final antes do envio
+        console.log('Formulário validado com sucesso');
+        console.log('Total a pagar:', total);
+        console.log('Forma de pagamento:', forma);
+        if (forma === 'DINHEIRO') {
+            console.log('Valor recebido:', valorRecebido);
+            console.log('Troco:', valorRecebido - total);
+        }
+        
+        // Prepara os dados para envio
+        const formData = new FormData(document.getElementById('formPagamento'));
+        console.log('Dados do FormData:');
+        for (let [key, value] of formData.entries()) {
+            console.log(`${key}: ${value}`);
+        }
+        
+        return confirm(mensagem);
+    }
+
+    function atualizarComServico() {
+        const checkbox = document.getElementById('comServico');
+        const hiddenInput = document.getElementById('comServicoHidden');
+        hiddenInput.value = checkbox.checked;
+        calcularTotal();
+    }
+
+    window.onload = function() {
+        console.log('Inicializando formulário de pagamento');
+        
+        // Inicializa os valores dos inputs de quantidade
+        document.querySelectorAll('.quantidade-input').forEach((input, index) => {
+            console.log(`Configurando input de quantidade ${index}:`, input);
+            const quantidadeMax = parseInt(input.getAttribute('data-max')) || 0;
+            input.value = quantidadeMax;
+            console.log(`Valor inicial definido para ${quantidadeMax}`);
+            
+            input.addEventListener('input', function() {
+                if (parseInt(this.value) < 1) {
+                    this.value = 1;
+                }
+                calcularTotal();
+                calcularTroco();
+            });
+        });
+        
+        // Seleciona todos os itens por padrão
+        selecionarTodosItens();
+        
+        // Adiciona evento de submit ao formulário
+        document.getElementById('formPagamento').addEventListener('submit', function(e) {
+            console.log('Formulário submetido');
+            if (!validarFormulario()) {
+                e.preventDefault();
+                console.log('Submissão do formulário cancelada');
+            } else {
+                console.log('Formulário será enviado');
+                // Log dos dados antes do envio
+                const formData = new FormData(this);
+                console.log('Dados finais do formulário:');
+                for (let [key, value] of formData.entries()) {
+                    console.log(`${key}: ${value}`);
+                }
+            }
+        });
+        
+        calcularTotal();
+        mostrarTroco();
+        
+        document.getElementById('comServico').addEventListener('change', function() {
+            atualizarComServico();
+        });
+        
+        document.getElementById('formaPagamento').addEventListener('change', mostrarTroco);
+        
+        if(document.getElementById('valorRecebido')) {
+            document.getElementById('valorRecebido').addEventListener('input', calcularTroco);
+        }
+    };
+    </script>
+</body>
+</html> 
